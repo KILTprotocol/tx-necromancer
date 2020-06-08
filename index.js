@@ -5,6 +5,7 @@ const fs = require("fs")
 
 const OUTFILE = "extrinsics.json"
 const START_BLOCK_NUM = undefined
+const NODE_ADDRESS = "ws://127.0.0.1:9944"
 
 const CallIndices = {
   "0x0000": "Timestamp",
@@ -29,7 +30,7 @@ function humanReadable(tx) {
 
 async function scrapeExtrinsics() {
   console.log("Start")
-  const wsProvider = new WsProvider("ws://full-nodes.devnet.kilt.io:9944")
+  const wsProvider = new WsProvider(NODE_ADDRESS)
   const api = await ApiPromise.create({ provider: wsProvider, types: {
       DelegationNodeId: 'Hash',
       PublicSigningKey: 'Hash',
