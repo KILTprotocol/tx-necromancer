@@ -57,7 +57,6 @@ async function replayExtrinsics() {
   };
 
   console.log("May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.")
-  console.dir(CallIndices, {depth: 4})
 
   const extrinsics = JSON.parse(fs.readFileSync(IN_FILE, 'utf8'))
 
