@@ -3,7 +3,7 @@ const { cryptoWaitReady } = require("@polkadot/util-crypto")
 const util = require("@polkadot/util")
 const fs = require("fs")
 
-const OUTFILE = "extrinsics.json"
+const OUT_FILE = "extrinsics.json"
 const START_BLOCK_NUM = undefined
 const NODE_ADDRESS = "ws://127.0.0.1:9944"
 
@@ -73,7 +73,7 @@ async function scrapeExtrinsics() {
   const outTXs = JSON.stringify(allTXs)
   console.log("Write TXs", outTXs)
 
-  fs.writeFile(OUTFILE, outTXs, (err) => {
+  fs.writeFile(OUT_FILE, outTXs, (err) => {
     if (err) return console.log(err)
     else console.log("All went well.")
   })
