@@ -15,12 +15,14 @@ const CallIndices = {
   "0x0601": "RevokeClaim",
   "0x0700": "CreateDelegationRoot",
   "0x0701": "AddDelegation",
+  "0x0800": "AddDID",
+  "0x0801": "RemoveDID",
 };
 
 function humanReadable(tx) {
   const method = util.u8aToHex(tx.method.callIndex)
   let args = JSON.parse(JSON.stringify(tx.method.args))
-
+  if (typeof CallIndices[method] === 'undefined') console.dir(tx, {depth: null})
   return {
     "method": CallIndices[method] || method,
     "signer": tx.signer,
@@ -45,14 +47,12 @@ async function scrapeExtrinsics(api) {
 
   for (let i = Number(block.header.number); i > 0; i--) {
     const { extrinsics } = block;
-    console.log(`Scraping ${block.extrinsics.length} extrinsics at block ${block.header.number}.`);
 
     extrinsics.filter((extrinsic) => {
       const method = util.u8aToHex(extrinsic.method.callIndex)
       return CallIndices[method] !== "Timestamp"
     }).forEach((extrinsic) => {
-      console.dir(extrinsic, { depth: null });
-      console.log("TX", humanReadable(extrinsic))
+      process.stdout.write(".")
       allTXs.push(humanReadable(extrinsic))
       // Set the new block as this one's parent.
     });
@@ -60,12 +60,12 @@ async function scrapeExtrinsics(api) {
   }
   allTXs = allTXs.reverse()
   const outTXs = JSON.stringify(allTXs)
-  console.log("Write TXs", outTXs)
 
   fs.writeFile(OUT_FILE, outTXs, (err) => {
     if (err) return console.log(err)
     else console.log("All went well.")
   })
+  return api
 }
 
 async function connect() {
@@ -80,10 +80,12 @@ async function connect() {
     }
   })
   await cryptoWaitReady()
+  return api
 }
 
-connect().then((api) => scrapeExtrinsics(api)).then(() => {
+connect().then(scrapeExtrinsics).then((api) => {
+  api.disconnect()
   console.log("OK BYE!")
-}, (err) => {
+}).catch((err) => {
   console.log("BAD THING!\n\n", err)
-}).finally()
+})
