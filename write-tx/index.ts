@@ -3,12 +3,13 @@ import { cryptoWaitReady } from "@polkadot/util-crypto"
 import * as util from "@polkadot/util"
 import * as fs from "fs"
 import BN = require('bn.js/')
+import * as readline from 'readline'
 
-const IN_FILE = "extrinsics.json"
+const IN_FILE = "extrinsics.csv"
 const NODE_ADDRESS = "ws://127.0.0.1:9945"
 const MNEMONIC = "//Alice"
 
-const PARALLEL = 800
+const PARALLEL = 1000
 
 const SIG_TYPE_ED25519 = new Uint8Array([0]);
 
@@ -24,10 +25,10 @@ function updateSig(signature) {
   )
 }
 
-function mapArg(method, argNum, mapper) {
-  return (...args) => {
+function mapArg(argNum, mapper) {
+  return (args) => {
     if (args.length >= argNum) args[argNum] = mapper(args[argNum])
-    return method(...args)
+    return args
   }
 }
 
@@ -77,16 +78,15 @@ async function replayExtrinsics(api) {
   const iamroot = keyring.addFromUri(MNEMONIC);
 
   const CallIndices = {
-    "Timestamp": undefined,
-    "Transfer": api.tx.balances.transfer,
-    "CreateCtype": api.tx.ctype.add,
-    "CreateAttestation": api.tx.attestation.add,
-    "RevokeClaim": api.tx.attestation.revoke,
-    "CreateDelegationRoot": api.tx.delegation.createRoot,
-    "AddDelegation": mapArg(api.tx.delegation.addDelegation, 5, updateSig),
-    "RevokeDelegation": api.tx.delegation.revokeDelegation,
-    "AddDID": api.tx.did.add,
-    "RemoveDID": api.tx.did.remove,
+    "balances.transfer": (_z: any) => _z,
+    "ctype.add": (_z: any) => _z,
+    "attestation.add": (_z: any) => _z,
+    "attestation.revoke": (_z: any) => _z,
+    "delegation.createRoot": (_z: any) => _z,
+    "delegation.addDelegation": mapArg(5, updateSig),
+    "delegation.revokeDelegation": (_z: any) => _z,
+    "did.add": (_z: any) => _z,
+    "did.remove": (_z: any) => _z,
   };
   if (iamroot.address !== (await api.query.sudo.key()).toString()) {
     console.log(`Got key: ${iamroot.address}, but ${(await api.query.sudo.key()).toString()} is root`);
@@ -95,18 +95,28 @@ async function replayExtrinsics(api) {
 
   console.log("May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.")
 
-  const extrinsics = JSON.parse(fs.readFileSync(IN_FILE, 'utf8'))
+  const fileStream = fs.createReadStream(IN_FILE);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  })
 
   let nonce = (await api.query.system.account(iamroot.address)).nonce
   let counter = 0
   let promises = []
-  for (let oldTX of extrinsics) {
+  for await (const line of rl) {
+    const [module, method, oldSigner, rawArgs] = line.split(';')
+    const args = JSON.parse(rawArgs)
     counter += 1
-    if (typeof CallIndices[oldTX.method] !== "undefined") {
-      let tx = CallIndices[oldTX.method](...oldTX.args)
+    const apiMod = api.tx[module]![method]
+    if (typeof apiMod !== 'undefined' && typeof CallIndices[`${module}.${method}`] !== 'undefined') {
+      let tx = apiMod(...CallIndices[`${module}.${method}`](args))
 
-      promises.push(sendAsSudo(api, iamroot, oldTX.oldSigner, tx, nonce))
+      promises.push(sendAsSudo(api, iamroot, oldSigner, tx, nonce))
       nonce = new BN(1).add(nonce)
+      process.stdout.write(".")
+    } else {
+      process.stdout.write("-")
     }
     if (promises.length >= PARALLEL) {
       // TODO: wait until any promise is done and remove done promises.
@@ -114,6 +124,7 @@ async function replayExtrinsics(api) {
       promises = []
     }
   }
+  await Promise.all(promises)
   console.log(`\n\nResurrected ${counter} transactions! May the dark node have mercy!`)
   return api
 }

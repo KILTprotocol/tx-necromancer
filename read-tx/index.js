@@ -3,7 +3,7 @@ const { cryptoWaitReady } = require("@polkadot/util-crypto")
 const util = require("@polkadot/util")
 const fs = require("fs")
 
-const OUT_FILE = "extrinsics.json"
+const OUT_FILE = "extrinsics.csv"
 const START_BLOCK_NUM = undefined
 const NODE_ADDRESS = "ws://127.0.0.1:9944"
 
@@ -19,15 +19,9 @@ const CallIndices = {
   "0x0801": "RemoveDID",
 };
 
-function humanReadable(tx) {
-  const method = util.u8aToHex(tx.method.callIndex)
-  let args = JSON.parse(JSON.stringify(tx.method.args))
-  if (typeof CallIndices[method] === 'undefined') console.dir(tx, {depth: null})
-  return {
-    "method": CallIndices[method] || method,
-    "signer": tx.signer,
-    "args": args,
-  }
+function toCSVRow(tx) {
+  let args = JSON.stringify(tx.method.args)
+  return `${tx.method.sectionName};${tx.method.methodName};${tx.signer};${args}`
 }
 
 async function scrapeExtrinsics(api) {
@@ -43,8 +37,6 @@ async function scrapeExtrinsics(api) {
   let block = bigBlock.block
   console.log(JSON.stringify(block))
 
-  let allTXs = []
-
   for (let i = Number(block.header.number); i > 0; i--) {
     const { extrinsics } = block;
 
@@ -52,19 +44,13 @@ async function scrapeExtrinsics(api) {
       const method = util.u8aToHex(extrinsic.method.callIndex)
       return CallIndices[method] !== "Timestamp"
     }).forEach((extrinsic) => {
+      fs.appendFileSync(OUT_FILE, toCSVRow(extrinsic) + '\n');
       process.stdout.write(".")
-      allTXs.push(humanReadable(extrinsic))
-      // Set the new block as this one's parent.
     });
-    block = (await api.rpc.chain.getBlock(block.header.parentHash)).block;
+      // Set the new block as this one's parent.
+      block = (await api.rpc.chain.getBlock(block.header.parentHash)).block;
   }
-  allTXs = allTXs.reverse()
-  const outTXs = JSON.stringify(allTXs)
-
-  fs.writeFile(OUT_FILE, outTXs, (err) => {
-    if (err) return console.log(err)
-    else console.log("All went well.")
-  })
+  console.log(block)
   return api
 }
 
