@@ -1,12 +1,14 @@
-const { ApiPromise, WsProvider, Keyring } = require("@polkadot/api")
-const { cryptoWaitReady } = require("@polkadot/util-crypto")
-const util = require("@polkadot/util")
-const fs = require("fs")
-const bn = require("bn.js")
+import { ApiPromise, WsProvider, Keyring } from "@polkadot/api"
+import { cryptoWaitReady } from "@polkadot/util-crypto"
+import * as util from "@polkadot/util"
+import * as fs from "fs"
+import BN = require('bn.js/')
 
 const IN_FILE = "extrinsics.json"
 const NODE_ADDRESS = "ws://127.0.0.1:9945"
 const MNEMONIC = "//Alice"
+
+const PARALLEL = 800
 
 const SIG_TYPE_ED25519 = new Uint8Array([0]);
 
@@ -42,24 +44,31 @@ function extrinsicFailed(extrinsicResult) {
 }
 
 async function sendAsSudo(api, iamroot, oldSigner, tx, nonce) {
-  await api.tx.sudo.sudoAs(oldSigner, tx).signAndSend(iamroot, {nonce}, result => {
-    console.log(`Got tx status '${result.status.type}'`)
+  return new Promise((resolve, reject) => {
+    api.tx.sudo.sudoAs(oldSigner, tx).signAndSend(iamroot, {nonce, tip: 5}, result => {
+        console.log(`Got tx status '${result.status.type}'`)
 
-    if (extrinsicFailed(result)) {
-      console.log(`Extrinsic execution failed`)
-      console.log(`Transaction detail: ${JSON.stringify(result, null, 2)}`)
-      const extrinsicError =
-        this.errorHandler.getExtrinsicError(result) || "Error"
-
-      console.log(`Extrinsic error occurred: ${extrinsicError}`)
-    }
-    if (result.isFinalized) {
-      console.log("Finalized!")
-    } else if (result.isError) {
-      console.log(
-          `Transaction failed with status '${result.status.type}'`
-        )
-      }
+        if (extrinsicFailed(result)) {
+          console.log(`Extrinsic execution failed`)
+          console.log(`Transaction detail: ${JSON.stringify(result, null, 2)}`)
+          reject(result)
+        }
+        if (result.isFinalized) {
+          resolve(result)
+        } else if (result.isError) {
+          console.log(`Extrinsic execution failed`)
+          reject(
+            new Error(
+              `Transaction failed with status '${result.status.type}'`
+            )
+          )
+        }
+      })
+      .catch((err: Error) => {
+        // just reject with the original tx error from the chain
+        console.log(`Error!`, err)
+        reject(err)
+      })
   })
 }
 
@@ -79,6 +88,10 @@ async function replayExtrinsics(api) {
     "AddDID": api.tx.did.add,
     "RemoveDID": api.tx.did.remove,
   };
+  if (iamroot.address !== (await api.query.sudo.key()).toString()) {
+    console.log(`Got key: ${iamroot.address}, but ${(await api.query.sudo.key()).toString()} is root`);
+    throw Error("This is not the secret for the Sudo key.");
+  }
 
   console.log("May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.")
 
@@ -86,13 +99,19 @@ async function replayExtrinsics(api) {
 
   let nonce = (await api.query.system.account(iamroot.address)).nonce
   let counter = 0
+  let promises = []
   for (let oldTX of extrinsics) {
     counter += 1
     if (typeof CallIndices[oldTX.method] !== "undefined") {
       let tx = CallIndices[oldTX.method](...oldTX.args)
 
-      nonce = new bn.BN(1).add(nonce)
-      await sendAsSudo(api, iamroot, oldTX.oldSigner, tx, nonce)
+      nonce = new BN(1).add(nonce)
+      promises.push(sendAsSudo(api, iamroot, oldTX.oldSigner, tx, nonce))
+    }
+    if (promises.length >= PARALLEL) {
+      // TODO: wait until any promise is done and remove done promises.
+      await Promise.all(promises)
+      promises = []
     }
   }
   console.log(`\n\nResurrected ${counter} transactions! May the dark node have mercy!`)
