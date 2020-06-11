@@ -105,8 +105,8 @@ async function replayExtrinsics(api) {
     if (typeof CallIndices[oldTX.method] !== "undefined") {
       let tx = CallIndices[oldTX.method](...oldTX.args)
 
-      nonce = new BN(1).add(nonce)
       promises.push(sendAsSudo(api, iamroot, oldTX.oldSigner, tx, nonce))
+      nonce = new BN(1).add(nonce)
     }
     if (promises.length >= PARALLEL) {
       // TODO: wait until any promise is done and remove done promises.
