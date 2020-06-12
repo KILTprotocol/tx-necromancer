@@ -83,7 +83,7 @@ async function sendAsSudo(api, iamroot, oldSigner, tx, nonce) {
 }
 
 const ArgMapper = {
-  "balances.transfer": mapArg(1, (arg) => 5),
+  "balances.transfer": id,
   "ctype.add": id,
   "attestation.add": id,
   "attestation.revoke": id,

@@ -34,4 +34,13 @@ The write-tx script needs the transactions in the opposite order. (use `tail -r 
 
 Before you start you need to set up the path to the file which contains all transactions, to which node to connect and the root authority mnemonic.
 After that you can start the script.
-Please note that there is no rate limiting for the transactions.
+
+In some cases simply replaying the script is not enough.
+If e.g. the signature encoding changed, all old signatures need to be adjusted for the new chain.
+The transactions them self are not signed on the new chain.
+Only signatures that are passed over to a method call need to be adjusted.
+
+If the genesis block changed the transactions need to change to.
+E.g. if there is a faucet account and the address for that account changed, all fund transfers need to be adjusted.
+
+IMPORTANT: The transaction fee is not deduced for the transactions! That means that the balance of all accounts is not accurate!
