@@ -26,8 +26,9 @@ That way you have a local synced node that already has all the transactions.
 You can then connect to your local node and read all transactions from there.
 This is way faster than querying the blocks from a remote node and also reduced the workload for remote nodes.
 
-Currently all transactions are stored in memory.
-This could lead to problems if there are more transactions than space in memory.
+The transactions in the csv file are in reverse order. The newest transaction is the top most line.
+The write-tx script needs the transactions in the opposite order. (use `tail -r input.csv > reversed.csv`)
+
 
 ## write-tx
 
