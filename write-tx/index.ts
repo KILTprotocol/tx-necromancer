@@ -11,7 +11,7 @@ const MNEMONIC = "//Alice"
 const NEW_FAUCET = "5HTEzvVT5bQxJTYPiDhRUw4GHarQVs66sFQEpQDUNT6MyoJr"
 const OLD_FAUCET = "5DQvFncZBQAep5586L5CqYb8QK6TYXUosgpnRRdiywNmAGjp"
 
-const PARALLEL = 1000
+const PARALLEL = 20
 
 const SIG_TYPE_ED25519 = new Uint8Array([0]);
 
@@ -117,13 +117,14 @@ async function replayExtrinsics(api) {
 
   console.log("May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.")
 
+  let nonce = (await api.query.system.account(iamroot.address)).nonce
+  // FIXME: this doesn't work if we wait too long in between. There is a timeout somewhere. We query the nonce before we open the file to not run into this.
   const fileStream = fs.createReadStream(IN_FILE)
   const rl = readline.createInterface({
     input: fileStream,
     crlfDelay: Infinity
   })
 
-  let nonce = (await api.query.system.account(iamroot.address)).nonce
   let counter = 0
   let promises = []
   for await (const line of rl) {
