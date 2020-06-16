@@ -7,6 +7,9 @@
     "@polkadot/api": "^1.17.2",
     "@polkadot/keyring": "^2.12.2",
     "@polkadot/util": "^2.12.2",
-    "@polkadot/util-crypto": "^2.12.2"
+    "@polkadot/util-crypto": "^2.12.2",
+    "@types/node": "^14.0.13",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
   }
 }
