@@ -1,0 +1,17 @@
+{
+  "name": "replay-tx",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@polkadot/api": "^0.96.1",
+    "@polkadot/keyring": "^1.7.0-beta.5",
+    "@polkadot/types": "^0.96.1",
+    "@polkadot/util": "^1.7.0-beta.5",
+    "@polkadot/util-crypto": "^1.7.0-beta.5",
+    "fs": "^0.0.1-security"
+  },
+  "devDependencies": {
+    "ts-node": "^8.8.1"
+  }
+}
