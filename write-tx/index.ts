@@ -1,32 +1,31 @@
-import { ApiPromise, WsProvider, Keyring } from "@polkadot/api"
-import { cryptoWaitReady } from "@polkadot/util-crypto"
-import * as util from "@polkadot/util"
-import * as fs from "fs"
-import BN = require('bn.js/')
+import { ApiPromise, Keyring, WsProvider } from '@polkadot/api'
+import * as util from '@polkadot/util'
+import { cryptoWaitReady } from '@polkadot/util-crypto'
+import * as fs from 'fs'
 import * as readline from 'readline'
+import BN = require('bn.js/')
 
-const IN_FILE = "reversed_tx.csv"
-const NODE_ADDRESS = "ws://127.0.0.1:9945"
-const MNEMONIC = "//Alice"
-const NEW_FAUCET = "5HTEzvVT5bQxJTYPiDhRUw4GHarQVs66sFQEpQDUNT6MyoJr"
-const OLD_FAUCET = "5DQvFncZBQAep5586L5CqYb8QK6TYXUosgpnRRdiywNmAGjp"
+const IN_FILE = 'reversed_tx.csv'
+const NODE_ADDRESS = 'ws://127.0.0.1:9945'
+const MNEMONIC = '//Alice'
+const NEW_FAUCET = '5HTEzvVT5bQxJTYPiDhRUw4GHarQVs66sFQEpQDUNT6MyoJr'
+const OLD_FAUCET = '5DQvFncZBQAep5586L5CqYb8QK6TYXUosgpnRRdiywNmAGjp'
 
 const PARALLEL = 20
 
-const SIG_TYPE_ED25519 = new Uint8Array([0]);
+const SIG_TYPE_ED25519 = new Uint8Array([0])
 
 enum SYSTEM_EVENTS {
   ExtrinsicSuccess = '0x0000',
   ExtrinsicFailed = '0x0001',
 }
 
-function id(args) {return args}
+function id(args) {
+  return args
+}
 
 function updateSig(signature) {
-  return util.u8aConcat(
-    SIG_TYPE_ED25519,
-    signature
-  )
+  return util.u8aConcat(SIG_TYPE_ED25519, signature)
 }
 
 function replaceFaucet(sourceAddress: string) {
@@ -55,7 +54,9 @@ function extrinsicFailed(extrinsicResult) {
 
 async function sendAsSudo(api, iamroot, oldSigner, tx, nonce) {
   return new Promise((resolve, reject) => {
-    api.tx.sudo.sudoAs(oldSigner, tx).signAndSend(iamroot, {nonce}, result => {
+    api.tx.sudo
+      .sudoAs(oldSigner, tx)
+      .signAndSend(iamroot, { nonce }, (result) => {
         console.log(`Got tx status '${result.status.type}'`)
 
         if (extrinsicFailed(result)) {
@@ -68,9 +69,7 @@ async function sendAsSudo(api, iamroot, oldSigner, tx, nonce) {
         } else if (result.isError) {
           console.log(`Extrinsic execution failed`)
           reject(
-            new Error(
-              `Transaction failed with status '${result.status.type}'`
-            )
+            new Error(`Transaction failed with status '${result.status.type}'`)
           )
         }
       })
@@ -83,27 +82,27 @@ async function sendAsSudo(api, iamroot, oldSigner, tx, nonce) {
 }
 
 const ArgMapper = {
-  "balances.transfer": id,
-  "ctype.add": id,
-  "attestation.add": id,
-  "attestation.revoke": id,
-  "delegation.createRoot": id,
-  "delegation.addDelegation": mapArg(5, updateSig),
-  "delegation.revokeDelegation": id,
-  "did.add": id,
-  "did.remove": id,
+  'balances.transfer': id,
+  'ctype.add': id,
+  'attestation.add': id,
+  'attestation.revoke': id,
+  'delegation.createRoot': id,
+  'delegation.addDelegation': mapArg(5, updateSig),
+  'delegation.revokeDelegation': id,
+  'did.add': id,
+  'did.remove': id,
 }
 
 const SenderMapper = {
-  "balances.transfer": replaceFaucet,
-  "ctype.add": id,
-  "attestation.add": id,
-  "attestation.revoke": id,
-  "delegation.createRoot": id,
-  "delegation.addDelegation": id,
-  "delegation.revokeDelegation": id,
-  "did.add": id,
-  "did.remove": id,
+  'balances.transfer': replaceFaucet,
+  'ctype.add': id,
+  'attestation.add': id,
+  'attestation.revoke': id,
+  'delegation.createRoot': id,
+  'delegation.addDelegation': id,
+  'delegation.revokeDelegation': id,
+  'did.add': id,
+  'did.remove': id,
 }
 
 async function replayExtrinsics(api) {
@@ -111,18 +110,24 @@ async function replayExtrinsics(api) {
   const iamroot = keyring.addFromUri(MNEMONIC)
 
   if (iamroot.address !== (await api.query.sudo.key()).toString()) {
-    console.log(`Got key: ${iamroot.address}, but ${(await api.query.sudo.key()).toString()} is root`)
-    throw Error("This is not the secret for the Sudo key.")
+    console.log(
+      `Got key: ${iamroot.address}, but ${(
+        await api.query.sudo.key()
+      ).toString()} is root`
+    )
+    throw Error('This is not the secret for the Sudo key.')
   }
 
-  console.log("May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.")
+  console.log(
+    'May the finalized swim once again in the pool of living, to be compiled, authored and, once again, finalized.'
+  )
 
   let nonce = (await api.query.system.account(iamroot.address)).nonce
   // FIXME: this doesn't work if we wait too long in between. There is a timeout somewhere. We query the nonce before we open the file to not run into this.
   const fileStream = fs.createReadStream(IN_FILE)
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   })
 
   let counter = 0
@@ -133,16 +138,19 @@ async function replayExtrinsics(api) {
     counter += 1
     const apiMod = api.tx[module]![method]
     const methodName = `${module}.${method}`
-    if (typeof apiMod !== 'undefined' && typeof ArgMapper[methodName] !== 'undefined') {
+    if (
+      typeof apiMod !== 'undefined' &&
+      typeof ArgMapper[methodName] !== 'undefined'
+    ) {
       let mappedArgs = ArgMapper[methodName](args)
       let mappedSender = SenderMapper[methodName](oldSigner)
       let tx = apiMod(...mappedArgs)
 
       promises.push(sendAsSudo(api, iamroot, mappedSender, tx, nonce))
       nonce = new BN(1).add(nonce)
-      process.stdout.write(".")
+      process.stdout.write('.')
     } else {
-      process.stdout.write("-")
+      process.stdout.write('-')
     }
     if (promises.length >= PARALLEL) {
       // TODO: wait until any promise is done and remove done promises.
@@ -151,32 +159,39 @@ async function replayExtrinsics(api) {
     }
   }
   await Promise.all(promises)
-  console.log(`\n\nResurrected ${counter} transactions! May the dark node have mercy!`)
+  console.log(
+    `\n\nResurrected ${counter} transactions! May the dark node have mercy!`
+  )
   return api
 }
 
 async function connect() {
   const wsProvider = new WsProvider(NODE_ADDRESS)
-  const api = await ApiPromise.create({ provider: wsProvider, types: {
-    DelegationNodeId: "Hash",
-    PublicSigningKey: "Hash",
-    PublicBoxKey: "Hash",
-    Permissions: "u32",
-    ErrorCode: "u16",
-    Address: "AccountId",
-    LookupSource: "AccountId",
-    Signature: "MultiSignature",
-    BlockNumber: "u64",
-    Index: "u64"
-    }
+  const api = await ApiPromise.create({
+    provider: wsProvider,
+    types: {
+      DelegationNodeId: 'Hash',
+      PublicSigningKey: 'Hash',
+      PublicBoxKey: 'Hash',
+      Permissions: 'u32',
+      ErrorCode: 'u16',
+      Address: 'AccountId',
+      LookupSource: 'AccountId',
+      Signature: 'MultiSignature',
+      BlockNumber: 'u64',
+      Index: 'u64',
+    },
   })
   await cryptoWaitReady()
   return api
 }
 
-connect().then(replayExtrinsics).then((api) => {
-  api.disconnect()
-  console.log("OK BYE!")
-}).catch((err) => {
-  console.log("BAD THING!\n\n", err)
-})
+connect()
+  .then(replayExtrinsics)
+  .then((api) => {
+    api.disconnect()
+    console.log('OK BYE!')
+  })
+  .catch((err) => {
+    console.log('BAD THING!\n\n', err)
+  })
